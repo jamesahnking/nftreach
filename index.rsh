@@ -1,22 +1,10 @@
-'reach 0.1';
+'reach 0.1'
 
 export const main = Reach.App(() => {
-  const A = Participant('A', {
-    // Specify A interact interface here 
-  });
-  
-  const B = Participant('B', {
-    // Specify B interact interface here 
-  });
-  
-  init();
-
-  A.publish()
-  commit()
-
-  B.publish()
-  commit()
-
-  exit()
-  
-});
+    const Creator = Participant('Creator', {
+        getSale: Fun([], Object({
+            nftId: Token,
+            minBid: UInt,
+        }))
+    })
+})
