@@ -1,7 +1,7 @@
 'reach 0.1'
 
 export const main = Reach.App(() => {
-    //CREATOR
+    //CREATOR::::
     // Creator of NFT auction / asset
     const Creator = Participant('Creator', {
         getSale: Fun([], Object({
@@ -15,7 +15,7 @@ export const main = Reach.App(() => {
 
     });
 
-    // BIDDER 
+    // BIDDER::::
     // Bidder will be a repeating participant, 
     // each participant will have identical functionality
     const Bidder = API('Bidder', {
@@ -23,27 +23,33 @@ export const main = Reach.App(() => {
     });
     init()
 
-    // COMMUNICATION MODEL:
+    // COMMUNICATION MODEL::::
     Creator.only(() => {
         const { nftId, minBid, lenInBlocks } = declassify(interact.getSale());
     })
 
     // Publish to Network 
     Creator.publish(nftId, minBid, lenInBlocks);
-    const amt = 1; // set amount of
-    commit()  // done with consensus back to local
-    Creator.pay([[amt, nftId]]); // deposit (1) nft into smart contract + charge(.pay) for consensus action
-    Creator.interact.auctionReady();// 
-    // Get block time 
+    // Set amount of asset
+    const amt = 1;
+    // Done with consensus back to local
+    commit()
+    // Deposit (1) nft into smart contract + charge(.pay) for consensus action
+    Creator.pay([[amt, nftId]]);
+    // 
+    Creator.interact.auctionReady();
+    // Set end by adding lastConsensus + how long we want the auction to run.
     const end = lastConsensusTime() + lenInBlocks;
 
     // CONCEPT: PARALELL REDUCE as BIDDING ENGINE
     // Parralell Reduce Creates a race between higest bidders 
     // in a consensus step until the auction is over.
     // P-Reduce means : Participants are attempting to produce 
-    // a new state from the current values IN paralell.
+    // a new state from the current values IN paralell. 
+    // Alice and Bob compete to be the first to update state
+    // Reach determins the winner and then runs the specified logic
 
-    // Update bid values
+    // Update bid values as a function of the P-Reduce
     const [
         highestBidder,
         lastPrice,
@@ -51,8 +57,20 @@ export const main = Reach.App(() => {
     ] = parallelReduce([Creator, minBid, true])
         .invariant(balance(nftId) == amt) // must be the same before during and after 
         .invariant(balance() == (isFirstBid ? 0 : lastPrice))// balance shouold either be zero or the last price
-        .while(lastConsensusTime() <= end) // while loop
-        .api_(Bidder.bid, (bid) => { //api macro with _ allowing to check for consensus and local step
+        .while(lastConsensusTime() <= end) // if we haven't reached the end of the acution
+        
+        // BIDDING API
+        .api_(Bidder.bid, (bid) => { // Checks for consensus and local step as well(les code)
 
-        })
-}) 
+            return [bid, (notify) => {
+                notify([highestBidder, lastPrice]);
+                if (!isFirstBid) {
+                    transfer(lastPrice).to(highestBidder);
+                }
+                const who = this;
+                Creator.interact.seeBid(who, bid);
+                return [who, bid, false];
+            }];
+
+        });
+})
