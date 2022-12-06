@@ -15,7 +15,7 @@ export const main = Reach.App(() => {
 
     });
 
-    // BIDDER::::
+    // BIDDER:::
     // Bidder will be a repeating participant, 
     // each participant will have identical functionality
     const Bidder = API('Bidder', {
@@ -23,12 +23,12 @@ export const main = Reach.App(() => {
     });
     init()
 
-    // COMMUNICATION MODEL::::
+    // COMMUNICATION MODEL:::
     Creator.only(() => {
         const { nftId, minBid, lenInBlocks } = declassify(interact.getSale());
     })
 
-    // Publish to Network 
+    // PUBLISH TO NETWORK:::
     Creator.publish(nftId, minBid, lenInBlocks);
     // Set amount of asset
     const amt = 1;
@@ -36,12 +36,18 @@ export const main = Reach.App(() => {
     commit()
     // Deposit (1) nft into smart contract + charge(.pay) for consensus action
     Creator.pay([[amt, nftId]]);
-    // 
+    // Interact with acutionReady func
     Creator.interact.auctionReady();
+
+    // ASSERTION::: 
+    // The balance of the NFT will always be set to one
+    // If assert fails the program will exit
+    assert(balance(nftId) == amt, 'balance of NFT is wrong');
+
     // Set end by adding lastConsensus + how long we want the auction to run.
     const end = lastConsensusTime() + lenInBlocks;
 
-    // CONCEPT: PARALELL REDUCE as BIDDING ENGINE
+    // PARALELL REDUCE as BIDDING ENGINE:::
     // Parralell Reduce Creates a race between higest bidders 
     // in a consensus step until the auction is over.
     // P-Reduce means : Participants are attempting to produce 
@@ -58,10 +64,15 @@ export const main = Reach.App(() => {
         .invariant(balance(nftId) == amt) // must be the same before during and after 
         .invariant(balance() == (isFirstBid ? 0 : lastPrice))// balance shouold either be zero or the last price
         .while(lastConsensusTime() <= end) // if we haven't reached the end of the acution
-        
-        // BIDDING API
+
+        // BIDDING API:::
         .api_(Bidder.bid, (bid) => { // Checks for consensus and local step as well(les code)
 
+            // ASSERTION::: 
+            // Is the bid greater than the last price
+            // if not tell us why
+            check(bid > lastPrice, "bid is too low");
+            
             return [bid, (notify) => {
                 notify([highestBidder, lastPrice]);
                 if (!isFirstBid) { //not fb
@@ -69,11 +80,13 @@ export const main = Reach.App(() => {
                 }
                 const who = this; // who is this ? this is the caller of the contract -> the bidder
                 Creator.interact.seeBid(who, bid); // we wand them to see the bid
-                return [who, bid, false]; // update the three values and its nologner the first call
+                return [who, bid, false]; // update the three values and its (it is no longer the first bid)
             }];
+        })
+        // P-REDUCE TIMEOUT::: - allows p-reduce to escape
+        .timeout(absoluteTime(end), () => {
+            Creator.publish();
+            return [highestBidder, lastPrice, isFirstBid];
         });
 
-        // P-REDUCE TIMEOUT - allows p-reduce to escape
-
-
-})
+}) 
