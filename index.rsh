@@ -64,13 +64,16 @@ export const main = Reach.App(() => {
 
             return [bid, (notify) => {
                 notify([highestBidder, lastPrice]);
-                if (!isFirstBid) {
-                    transfer(lastPrice).to(highestBidder);
+                if (!isFirstBid) { //not fb
+                    transfer(lastPrice).to(highestBidder); //lastprice to highest bidder
                 }
-                const who = this;
-                Creator.interact.seeBid(who, bid);
-                return [who, bid, false];
+                const who = this; // who is this ? this is the caller of the contract -> the bidder
+                Creator.interact.seeBid(who, bid); // we wand them to see the bid
+                return [who, bid, false]; // update the three values and its nologner the first call
             }];
-
         });
+
+        // P-REDUCE TIMEOUT - allows p-reduce to escape
+
+
 })
