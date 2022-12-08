@@ -1,5 +1,4 @@
 'reach 0.1'
-
 export const main = Reach.App(() => {
     //CREATOR::::
     // Creator of NFT auction / asset
@@ -11,7 +10,7 @@ export const main = Reach.App(() => {
         })),
         auctionReady: Fun([], Null),  // let the contract know the auction is ready
         seeBid: Fun([Address, UInt], Null),  // see the latest bids 
-        showOutCome: Fun([Address, UInt], Null),  // show outcome of the auction
+        showOutcome: Fun([Address, UInt], Null),  // show outcome of the auction
 
     });
 
@@ -72,7 +71,7 @@ export const main = Reach.App(() => {
             // Is the bid greater than the last price
             // if not tell us why
             check(bid > lastPrice, "bid is too low");
-            
+
             return [bid, (notify) => {
                 notify([highestBidder, lastPrice]);
                 if (!isFirstBid) { //not fb
@@ -89,4 +88,10 @@ export const main = Reach.App(() => {
             return [highestBidder, lastPrice, isFirstBid];
         });
 
+    // AUCTION RESOLUTION:::
+    transfer(amt, nftId).to(highestBidder);
+    if (!isFirstBid) { transfer(lastPrice).to(Creator); }
+    Creator.interact.showOutcome(highestBidder, lastPrice);
+    commit()
+    exit()
 }) 
